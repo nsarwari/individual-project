@@ -51,21 +51,17 @@ ORANGE_MONSTER_HEIGHT = 50
 ORANGE_MONSTER_IMG = pygame.transform.scale(ORANGE_MONSTER_IMG, (ORANGE_MONSTER_WIDTH, ORANGE_MONSTER_HEIGHT))
 
 CANDY_IMG = pygame.image.load("candy.png")
-CANDY_WIDTH = 100
-CANDY_HEIGHT = 100
+CANDY_WIDTH = 60
+CANDY_HEIGHT = 60
 CANDY_IMG = pygame.transform.scale(CANDY_IMG, (CANDY_WIDTH, CANDY_HEIGHT))
+
+# Load provided images
+OVAL_IMG = pygame.image.load("oval.png")
+SQUARE_IMG = pygame.image.load("square.png")
 
 # Use a nicer font from Pygame's default fonts
 FONT = pygame.font.SysFont("arial", 24)
-BIG_FONT = pygame.font.SysFont("arial", 40)
-
-def draw_text_with_box(text, font, color, box_color, x, y, padding=10):
-    text_surf = font.render(text, True, color)
-    text_rect = text_surf.get_rect()
-    box_rect = pygame.Rect(x, y, text_rect.width + 2 * padding, text_rect.height + 2 * padding)
-    text_rect.topleft = (x + padding, y + padding)
-    pygame.draw.rect(WIN, box_color, box_rect)
-    WIN.blit(text_surf, text_rect)
+BIG_FONT = pygame.font.SysFont("arial", 40, bold=True)
 
 def draw_button(text, font, color, box_color, x, y, padding=10):
     text_surf = font.render(text, True, color)
@@ -76,15 +72,37 @@ def draw_button(text, font, color, box_color, x, y, padding=10):
     WIN.blit(text_surf, text_rect)
     return box_rect
 
+def draw_oval_with_text(text, font, color, x, y, padding=20):
+    text_surf = font.render(text, True, color)
+    text_rect = text_surf.get_rect()
+    oval_rect = pygame.Rect(x, y, text_rect.width + 2 * padding, text_rect.height + 2 * padding)
+    pygame.draw.ellipse(WIN, (173, 216, 230), oval_rect)
+    text_rect.center = oval_rect.center
+    WIN.blit(text_surf, text_rect)
+
+def draw_square_with_text(text, font, color, square_img, x, y):
+    text_surf = font.render(text, True, color)
+    text_rect = text_surf.get_rect()
+    square_rect = pygame.Rect(x, y, text_rect.width + 20, text_rect.height + 20)
+    WIN.blit(pygame.transform.scale(square_img, (square_rect.width, square_rect.height)), square_rect.topleft)
+    text_rect.center = square_rect.center
+    WIN.blit(text_surf, text_rect)
+
+def draw_square_with_candy(square_img, candy_img, x, y):
+    square_rect = pygame.Rect(x, y, candy_img.get_width() + 40, candy_img.get_height() + 40)
+    WIN.blit(pygame.transform.scale(square_img, (square_rect.width, square_rect.height)), square_rect.topleft)
+    WIN.blit(candy_img, (x + 20, y + 20))
+
+def draw_initial_instructions():
+    WIN.blit(BG, (0, 0))
+    draw_oval_with_text("Catch the fruits & get your candy!", BIG_FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 - 150)
+    draw_oval_with_text("Use the left and right arrows to move the basket and catch your fruit", FONT, "white", WIDTH / 2 - 350, HEIGHT / 2 - 50)
+    draw_oval_with_text("If you miss 3 fruits you lose", FONT, "white", WIDTH / 2 - 200, HEIGHT / 2 + 50)
+    pygame.display.update()
+    time.sleep(5)  # Show the instructions for 5 seconds
+
 def draw(player, elapsed_time, fruits, monsters, score, missed, level, monster_touches, candy_count):
     WIN.blit(BG, (0, 0))
-
-    draw_text_with_box(f"Time: {round(elapsed_time)}s", FONT, "white", (173, 216, 230), 10, 10)
-    draw_text_with_box(f"Score: {score}", FONT, "white", (173, 216, 230), WIDTH - 200, 10)
-    draw_text_with_box(f"Missed: {missed}", FONT, "white", (173, 216, 230), WIDTH - 200, 50)
-    draw_text_with_box(f"Level: {level}", FONT, "white", (173, 216, 230), WIDTH - 200, 90)
-    draw_text_with_box(f"Monster Touches: {monster_touches}/2", FONT, "white", (173, 216, 230), WIDTH - 240, 130)
-    draw_text_with_box(f"Candies: {candy_count}", FONT, "white", (173, 216, 230), WIDTH - 240, 170)
 
     WIN.blit(BASKET_IMG, (player.x, player.y))
 
@@ -104,35 +122,46 @@ def draw(player, elapsed_time, fruits, monsters, score, missed, level, monster_t
         else:
             WIN.blit(ORANGE_MONSTER_IMG, (monster.x, monster.y))
 
+    draw_square_with_text(f"Time: {round(elapsed_time)}s", FONT, "white", SQUARE_IMG, 10, 10)
+    draw_square_with_text(f"Score: {score}", FONT, "white", SQUARE_IMG, 10, 60)
+    draw_square_with_text(f"Missed: {missed}", FONT, "white", SQUARE_IMG, 10, 110)
+    draw_square_with_text(f"Level: {level}", FONT, "white", SQUARE_IMG, 10, 160)
+    draw_square_with_text(f"Monster Touches: {monster_touches}/2", FONT, "white", SQUARE_IMG, 10, 210)
+    draw_square_with_candy(SQUARE_IMG, CANDY_IMG, 10, 260)
+    draw_square_with_text(f"{candy_count}", FONT, "white", SQUARE_IMG, 80, 260)
+
     pygame.display.update()
 
 def draw_game_over(score):
     WIN.blit(BG, (0, 0))
 
-    draw_text_with_box("Game Over!", BIG_FONT, "white", (173, 216, 230), WIDTH / 2 - 150, HEIGHT / 4)
-    draw_text_with_box(f"Your Score: {score}", FONT, "white", (173, 216, 230), WIDTH / 2 - 150, HEIGHT / 2)
-    draw_text_with_box("Press R to Restart", FONT, "white", (173, 216, 230), WIDTH / 2 - 150, HEIGHT - 100)
+    draw_oval_with_text("Game Over!", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 4)
+    draw_oval_with_text(f"Your Score: {score}", FONT, "white", WIDTH / 2 - 150, HEIGHT / 2)
+    draw_oval_with_text("Press R to Restart", FONT, "white", WIDTH / 2 - 150, HEIGHT - 100)
 
     pygame.display.update()
 
 def draw_candy(candy_count):
     WIN.blit(BG, (0, 0))
     WIN.blit(CANDY_IMG, (WIDTH / 2 - CANDY_WIDTH / 2, HEIGHT / 2 - CANDY_HEIGHT / 2))
-    draw_text_with_box(f"Candy Count: {candy_count}", BIG_FONT, "white", (173, 216, 230), WIDTH / 2 - 150, HEIGHT / 2 - 150)
+    draw_oval_with_text(f"Candy Count: {candy_count}", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 2 - 150)
     play_again_button = draw_button("Play Again & Win Again", FONT, "white", (0, 128, 0), WIDTH / 2 - 150, HEIGHT - 100)
-    draw_text_with_box("Get 12 candies and a real winner gift candy set will be sent to you, so go get your fruits!", FONT, "white", (173, 216, 230), WIDTH / 2 - 300, HEIGHT / 2 + 100)
+    draw_button("Get 12 candies and a real winner gift candy set will be sent to you, so go get your fruits!", FONT, "white", (173, 216, 230), WIDTH / 2 - 300, HEIGHT / 2 + 100)
+
     pygame.display.update()
     return play_again_button
 
 def draw_level_up(level):
     WIN.blit(BG, (0, 0))
-    draw_text_with_box(f"Congrats, next level {level}!", BIG_FONT, "white", (173, 216, 230), WIDTH / 2 - 200, HEIGHT / 2 - 50)
+    draw_oval_with_text(f"Congrats, next level {level}!", BIG_FONT, "white", WIDTH / 2 - 200, HEIGHT / 2 - 50)
+
     pygame.display.update()
     pygame.time.delay(2000)  # Show the level up message for 2 seconds
 
 def draw_warning():
     WIN.blit(BG, (0, 0))
-    draw_text_with_box("Don't touch the monsters, you will not survive!", BIG_FONT, "white", (173, 216, 230), WIDTH / 2 - 300, HEIGHT / 2 - 50)
+    draw_oval_with_text("Don't touch the monsters, you will not survive!", BIG_FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 - 50)
+
     pygame.display.update()
     pygame.time.delay(2000)  # Show the warning message for 2 seconds
 
@@ -157,8 +186,11 @@ def main(fruit_vel_multiplier=1, candy_count=0):
     missed = 0
     monster_touches = 0
     fruit_vel_increment = 0.05 * fruit_vel_multiplier  # Speed increase per fruit collected
-    fruit_spawn_delay = 2300  # Delay in milliseconds between fruits
+    fruit_spawn_delay = 2800  # Increased delay in milliseconds between fruits
     last_fruit_time = pygame.time.get_ticks()  # Track the time when the last fruit was added
+    last_fruit_x = WIDTH // 2  # Start with the fruit in the middle
+
+    draw_initial_instructions()
 
     while run:
         clock.tick(60)  # Ensure the game runs at 60 FPS
@@ -167,7 +199,7 @@ def main(fruit_vel_multiplier=1, candy_count=0):
         current_time = pygame.time.get_ticks()
         if not game_over:
             if current_time - last_fruit_time > fruit_spawn_delay:
-                fruit_x = random.randint(0, WIDTH - STRAWBERRY_WIDTH)
+                fruit_x = random.randint(max(0, last_fruit_x - 300), min(WIDTH - STRAWBERRY_WIDTH, last_fruit_x + 300))
                 if level == 1:
                     fruit = pygame.Rect(fruit_x, -STRAWBERRY_HEIGHT, STRAWBERRY_WIDTH, STRAWBERRY_HEIGHT)
                 elif level == 2:
@@ -175,17 +207,21 @@ def main(fruit_vel_multiplier=1, candy_count=0):
                 else:
                     fruit = pygame.Rect(fruit_x, -ORANGE_HEIGHT, ORANGE_WIDTH, ORANGE_HEIGHT)
                 fruits.append(fruit)
+                last_fruit_x = fruit_x
                 last_fruit_time = current_time
 
-            if ((level == 1 and score >= 10) or (level == 2) or (level == 3 and score < 75)) and current_time - monster_count > monster_add_increment:
+            if ((level == 1 and score >= 10) or (level == 2 and score < 34) or (level == 3 and score >= 34)) and current_time - monster_count > monster_add_increment:
                 monster_x = random.randint(0, WIDTH - MONSTER_WIDTH)
                 if level == 1:
                     monster = pygame.Rect(monster_x, -MONSTER_HEIGHT, MONSTER_WIDTH, MONSTER_HEIGHT)
                 elif level == 2:
-                    monster = pygame.Rect(monster_x, -GREEN_MONSTER_HEIGHT, GREEN_MONSTER_WIDTH, GREEN_MONSTER_HEIGHT)
+                    for _ in range(2):  # Increase number of monsters
+                        monster = pygame.Rect(monster_x, -GREEN_MONSTER_HEIGHT, GREEN_MONSTER_WIDTH, GREEN_MONSTER_HEIGHT)
+                        monsters.append(monster)
                 else:
-                    monster = pygame.Rect(monster_x, -ORANGE_MONSTER_HEIGHT, ORANGE_MONSTER_WIDTH, ORANGE_MONSTER_HEIGHT)
-                monsters.append(monster)
+                    for _ in range(3):  # Increase number of monsters
+                        monster = pygame.Rect(monster_x, -ORANGE_MONSTER_HEIGHT, ORANGE_MONSTER_WIDTH, ORANGE_MONSTER_HEIGHT)
+                        monsters.append(monster)
                 monster_count = current_time
 
             for event in pygame.event.get():
@@ -209,6 +245,8 @@ def main(fruit_vel_multiplier=1, candy_count=0):
                     fruits.remove(fruit)
                     score += 1
                     STRAWBERRY_VEL += fruit_vel_increment  # Increase speed
+                    if score % 3 == 0:
+                        fruit_spawn_delay = max(800, fruit_spawn_delay - 100)  # Decrease delay with a minimum limit
                     if score == 10 and not show_warning:
                         draw_warning()
                         show_warning = True
@@ -261,19 +299,4 @@ def main(fruit_vel_multiplier=1, candy_count=0):
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
