@@ -1,9 +1,8 @@
 import pygame
 import time
 import random
-
-
-
+import datetime
+import pandas as pd
 
 pygame.font.init()
 
@@ -13,19 +12,18 @@ pygame.display.set_caption("Fruitwinner")
 
 BG = pygame.transform.scale(pygame.image.load("bg.png"), (WIDTH, HEIGHT))
 
-PLAYER_WIDTH = 80  # Adjust to match the basket image size
-PLAYER_HEIGHT = 80  # Adjust to match the basket image size
+PLAYER_WIDTH = 80
+PLAYER_HEIGHT = 80
 PLAYER_VEL = 5
 
-# Load and resize the images
-BASKET_IMG = pygame.image.load("basket.png")
-BASKET_IMG = pygame.transform.scale(BASKET_IMG, (PLAYER_WIDTH, PLAYER_HEIGHT))
+OPEN_MOUTH_IMG = pygame.image.load("open-mouth.png")
+OPEN_MOUTH_IMG = pygame.transform.scale(OPEN_MOUTH_IMG, (PLAYER_WIDTH, PLAYER_HEIGHT))
 
 STRAWBERRY_IMG = pygame.image.load("strawberry.png")
 STRAWBERRY_WIDTH = 50
 STRAWBERRY_HEIGHT = 50
 STRAWBERRY_IMG = pygame.transform.scale(STRAWBERRY_IMG, (STRAWBERRY_WIDTH, STRAWBERRY_HEIGHT))
-STRAWBERRY_VEL = 1
+STRAWBERRY_VEL = 2  # Increased speed
 
 APPLE_IMG = pygame.image.load("green_apple.png")
 APPLE_WIDTH = 50
@@ -41,7 +39,7 @@ MONSTER_IMG = pygame.image.load("monster.png")
 MONSTER_WIDTH = 50
 MONSTER_HEIGHT = 50
 MONSTER_IMG = pygame.transform.scale(MONSTER_IMG, (MONSTER_WIDTH, MONSTER_HEIGHT))
-MONSTER_VEL = 1
+MONSTER_VEL = 2  # Increased speed
 
 GREEN_MONSTER_IMG = pygame.image.load("green_monster.png")
 GREEN_MONSTER_WIDTH = 50
@@ -58,13 +56,14 @@ CANDY_WIDTH = 60
 CANDY_HEIGHT = 60
 CANDY_IMG = pygame.transform.scale(CANDY_IMG, (CANDY_WIDTH, CANDY_HEIGHT))
 
-# Load provided images
-OVAL_IMG = pygame.image.load("oval.png")
-SQUARE_IMG = pygame.image.load("square.png")
+RECTANGLE_IMG = pygame.image.load("rectangle.png")
 
-# Use a nicer font from Pygame's default fonts
 FONT = pygame.font.SysFont("arial", 24)
 BIG_FONT = pygame.font.SysFont("arial", 40, bold=True)
+
+# Feedback storage
+feedbacks = []
+game_results = []
 
 def draw_button(text, font, color, box_color, x, y, padding=10):
     text_surf = font.render(text, True, color)
@@ -75,13 +74,18 @@ def draw_button(text, font, color, box_color, x, y, padding=10):
     WIN.blit(text_surf, text_rect)
     return box_rect
 
-def draw_oval_with_text(text, font, color, x, y, padding=20):
+def draw_rectangle_with_text(text, font, color, x, y, padding=20):
     text_surf = font.render(text, True, color)
     text_rect = text_surf.get_rect()
-    oval_rect = pygame.Rect(x, y, text_rect.width + 2 * padding, text_rect.height + 2 * padding)
-    pygame.draw.ellipse(WIN, (173, 216, 230), oval_rect)
-    text_rect.center = oval_rect.center
+    rectangle_width = text_rect.width + 2 * padding
+    rectangle_height = text_rect.height + 2 * padding
+    rectangle_img = pygame.transform.scale(RECTANGLE_IMG, (rectangle_width, rectangle_height))
+    rectangle_rect = rectangle_img.get_rect()
+    rectangle_rect.topleft = (x, y)
+    WIN.blit(rectangle_img, rectangle_rect.topleft)
+    text_rect.center = rectangle_rect.center
     WIN.blit(text_surf, text_rect)
+    return rectangle_rect
 
 def draw_square_with_text(text, font, color, square_img, x, y):
     text_surf = font.render(text, True, color)
@@ -98,16 +102,16 @@ def draw_square_with_candy(square_img, candy_img, x, y):
 
 def draw_initial_instructions():
     WIN.blit(BG, (0, 0))
-    draw_oval_with_text("Catch the fruits & get your candy!", BIG_FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 - 150)
-    draw_oval_with_text("Use the left and right arrows to move the basket and catch your fruit", FONT, "white", WIDTH / 2 - 350, HEIGHT / 2 - 50)
-    draw_oval_with_text("If you miss 3 fruits you lose", FONT, "white", WIDTH / 2 - 200, HEIGHT / 2 + 50)
+    draw_rectangle_with_text("Catch the fruits & get your candy!", BIG_FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 - 150)
+    draw_rectangle_with_text("Use the left and right arrows to move your mouth and eat your fruits", FONT, "white", WIDTH / 2 - 350, HEIGHT / 2 - 50)
+    draw_rectangle_with_text("If you miss 3 fruits you lose", FONT, "white", WIDTH / 2 - 200, HEIGHT / 2 + 50)
     pygame.display.update()
     time.sleep(5)  # Show the instructions for 5 seconds
 
 def draw(player, elapsed_time, fruits, monsters, score, missed, level, monster_touches, candy_count):
     WIN.blit(BG, (0, 0))
 
-    WIN.blit(BASKET_IMG, (player.x, player.y))
+    WIN.blit(OPEN_MOUTH_IMG, (player.x, player.y))
 
     for fruit in fruits:
         if level == 1:
@@ -125,51 +129,105 @@ def draw(player, elapsed_time, fruits, monsters, score, missed, level, monster_t
         else:
             WIN.blit(ORANGE_MONSTER_IMG, (monster.x, monster.y))
 
-    draw_square_with_text(f"Time: {round(elapsed_time)}s", FONT, "white", SQUARE_IMG, 10, 10)
-    draw_square_with_text(f"Score: {score}", FONT, "white", SQUARE_IMG, 10, 60)
-    draw_square_with_text(f"Missed: {missed}", FONT, "white", SQUARE_IMG, 10, 110)
-    draw_square_with_text(f"Level: {level}", FONT, "white", SQUARE_IMG, 10, 160)
-    draw_square_with_text(f"Monster Touches: {monster_touches}/2", FONT, "white", SQUARE_IMG, 10, 210)
-    draw_square_with_candy(SQUARE_IMG, CANDY_IMG, 10, 260)
-    draw_square_with_text(f"{candy_count}", FONT, "white", SQUARE_IMG, 80, 260)
+    draw_square_with_text(f"Time: {round(elapsed_time)}s", FONT, "white", RECTANGLE_IMG, 10, 10)
+    draw_square_with_text(f"Score: {score}", FONT, "white", RECTANGLE_IMG, 10, 60)
+    draw_square_with_text(f"Missed: {missed}", FONT, "white", RECTANGLE_IMG, 10, 110)
+    draw_square_with_text(f"Level: {level}", FONT, "white", RECTANGLE_IMG, 10, 160)
+    draw_square_with_text(f"Monster Touches: {monster_touches}/2", FONT, "white", RECTANGLE_IMG, 10, 210)
+    draw_square_with_candy(RECTANGLE_IMG, CANDY_IMG, 10, 260)
+    draw_square_with_text(f"{candy_count}", FONT, "white", RECTANGLE_IMG, 80, 260)
 
     pygame.display.update()
 
 def draw_game_over(score):
     WIN.blit(BG, (0, 0))
 
-    draw_oval_with_text("Game Over!", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 4)
-    draw_oval_with_text(f"Your Score: {score}", FONT, "white", WIDTH / 2 - 150, HEIGHT / 2)
-    draw_oval_with_text("Press R to Restart", FONT, "white", WIDTH / 2 - 150, HEIGHT - 100)
+    draw_rectangle_with_text("Game Over!", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 4)
+    draw_rectangle_with_text(f"Your Score: {score}", FONT, "white", WIDTH / 2 - 150, HEIGHT / 2)
 
+    restart_button = draw_button("Restart", FONT, (255, 255, 255), (0, 128, 0), WIDTH / 2 - 150, HEIGHT - 100)
+    feedback_button = draw_button("Submit Feedback", FONT, (0, 0, 0), (173, 216, 230), 10, HEIGHT - 60)
+    feedback_input_rect = pygame.Rect(10, HEIGHT - 110, 300, 50)
+    pygame.draw.rect(WIN, (255, 255, 255), feedback_input_rect)
+    pygame.draw.rect(WIN, (0, 0, 0), feedback_input_rect, 2)
     pygame.display.update()
+    return restart_button, feedback_button, feedback_input_rect
 
 def draw_candy(candy_count):
     WIN.blit(BG, (0, 0))
     WIN.blit(CANDY_IMG, (WIDTH / 2 - CANDY_WIDTH / 2, HEIGHT / 2 - CANDY_HEIGHT / 2))
-    draw_oval_with_text(f"Candy Count: {candy_count}", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 2 - 150)
+    draw_rectangle_with_text(f"Candy Count: {candy_count}", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 2 - 150)
+    draw_rectangle_with_text("Get 12 candies and a real winner gift candy set will be sent to you, so go get your fruits!", FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 + 50)
+    draw_rectangle_with_text("Congratulations, you won a candy treat!", FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 + 100)
+    
     play_again_button = draw_button("Play Again & Win Again", FONT, "white", (0, 128, 0), WIDTH / 2 - 150, HEIGHT - 100)
-    draw_button("Get 12 candies and a real winner gift candy set will be sent to you, so go get your fruits!", FONT, "white", (173, 216, 230), WIDTH / 2 - 300, HEIGHT / 2 + 100)
 
+    feedback_button = draw_button("Submit Feedback", FONT, (0, 0, 0), (173, 216, 230), 10, HEIGHT - 60)
+    feedback_input_rect = pygame.Rect(10, HEIGHT - 110, 300, 50)
+    pygame.draw.rect(WIN, (255, 255, 255), feedback_input_rect)
+    pygame.draw.rect(WIN, (0, 0, 0), feedback_input_rect, 2)
     pygame.display.update()
-    return play_again_button
+    return play_again_button, feedback_button, feedback_input_rect
 
 def draw_level_up(level):
     WIN.blit(BG, (0, 0))
-    draw_oval_with_text(f"Congrats, next level {level}!", BIG_FONT, "white", WIDTH / 2 - 200, HEIGHT / 2 - 50)
+    draw_rectangle_with_text(f"Congrats, next level {level}!", BIG_FONT, "white", WIDTH / 2 - 200, HEIGHT / 2 - 50)
 
     pygame.display.update()
     pygame.time.delay(2000)  # Show the level up message for 2 seconds
 
 def draw_warning():
     WIN.blit(BG, (0, 0))
-    draw_oval_with_text("Don't touch the monsters, you will not survive!", BIG_FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 - 50)
+    draw_rectangle_with_text("Don't touch the monsters, you will not survive!", BIG_FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 - 50)
 
     pygame.display.update()
     pygame.time.delay(2000)  # Show the warning message for 2 seconds
 
-def main(fruit_vel_multiplier=1, candy_count=0):
-    global STRAWBERRY_VEL, MONSTER_VEL
+def handle_feedback(feedback_input_rect, start_time, difficulty, end_time, score, won):
+    feedback_text = ""
+    font = pygame.font.SysFont("arial", 18)
+    submitting_feedback = True
+
+    while submitting_feedback:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    feedbacks.append((feedback_text, datetime.datetime.now()))
+                    game_results.append({
+                        "Start Time": start_time,
+                        "End Time": end_time,
+                        "Duration": end_time - start_time,
+                        "Score": score,
+                        "Difficulty": difficulty,
+                        "Feedback": feedback_text
+                    })
+                    df = pd.DataFrame(game_results)
+                    df.to_excel("game_results.xlsx", index=False)
+                    submitting_feedback = False
+                elif event.key == pygame.K_BACKSPACE:
+                    feedback_text = feedback_text[:-1]
+                else:
+                    feedback_text += event.unicode
+
+        WIN.blit(BG, (0, 0))
+        pygame.draw.rect(WIN, (255, 255, 255), feedback_input_rect)
+        pygame.draw.rect(WIN, (0, 0, 0), feedback_input_rect, 2)
+        text_surface = font.render(feedback_text, True, (0, 0, 0))
+        WIN.blit(text_surface, (feedback_input_rect.x + 5, feedback_input_rect.y + 5))
+        feedback_button = draw_button("Submit Feedback", font, (0, 0, 0), (173, 216, 230), 10, HEIGHT - 60)
+        pygame.display.flip()
+
+    if won:
+        play_again_button, feedback_button, feedback_input_rect = draw_candy(score // 40)
+    else:
+        restart_button, feedback_button, feedback_input_rect = draw_game_over(score)
+    return play_again_button if won else restart_button
+
+def main(fruit_vel_increment=0.05, candy_count=0):
+    global STRAWBERRY_VEL, MONSTER_VEL, score
     run = True
     game_over = False
     level = 1
@@ -180,7 +238,7 @@ def main(fruit_vel_multiplier=1, candy_count=0):
     start_time = time.time()
     elapsed_time = 0
 
-    monster_add_increment = 5000  # Add a delay for monsters to spawn less frequently
+    monster_add_increment = 5000
     monster_count = 0
 
     fruits = []
@@ -188,15 +246,42 @@ def main(fruit_vel_multiplier=1, candy_count=0):
     score = 0
     missed = 0
     monster_touches = 0
-    fruit_vel_increment = 0.05 * fruit_vel_multiplier  # Speed increase per fruit collected
-    fruit_spawn_delay = 2800  # Increased delay in milliseconds between fruits
-    last_fruit_time = pygame.time.get_ticks()  # Track the time when the last fruit was added
-    last_fruit_x = WIDTH // 2  # Start with the fruit in the middle
+    fruit_spawn_delay = 2300  # Decreased delay for faster fruit spawning
+    last_fruit_time = pygame.time.get_ticks()
+    last_fruit_x = WIDTH // 2
+
+    # Draw difficulty selection
+    WIN.blit(BG, (0, 0))
+    beginner_button = draw_rectangle_with_text("Beginner", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 2 - 150)
+    intermediate_button = draw_rectangle_with_text("Intermediate", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 2)
+    pro_button = draw_rectangle_with_text("Pro", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 2 + 150)
+    pygame.display.update()
+
+    difficulty_selected = False
+    difficulty = ""
+    while not difficulty_selected:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                difficulty_selected = True
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if beginner_button.collidepoint(event.pos):
+                    fruit_vel_increment = 0.05
+                    difficulty = "Beginner"
+                    difficulty_selected = True
+                elif intermediate_button.collidepoint(event.pos):
+                    fruit_vel_increment = 0.1
+                    difficulty = "Intermediate"
+                    difficulty_selected = True
+                elif pro_button.collidepoint(event.pos):
+                    fruit_vel_increment = 0.15
+                    difficulty = "Pro"
+                    difficulty_selected = True
 
     draw_initial_instructions()
 
     while run:
-        clock.tick(60)  # Ensure the game runs at 60 FPS
+        clock.tick(60)
         elapsed_time = time.time() - start_time
 
         current_time = pygame.time.get_ticks()
@@ -215,16 +300,8 @@ def main(fruit_vel_multiplier=1, candy_count=0):
 
             if ((level == 1 and score >= 10) or (level == 2 and score < 34) or (level == 3 and score >= 34)) and current_time - monster_count > monster_add_increment:
                 monster_x = random.randint(0, WIDTH - MONSTER_WIDTH)
-                if level == 1:
-                    monster = pygame.Rect(monster_x, -MONSTER_HEIGHT, MONSTER_WIDTH, MONSTER_HEIGHT)
-                elif level == 2:
-                    for _ in range(2):  # Increase number of monsters
-                        monster = pygame.Rect(monster_x, -GREEN_MONSTER_HEIGHT, GREEN_MONSTER_WIDTH, GREEN_MONSTER_HEIGHT)
-                        monsters.append(monster)
-                else:
-                    for _ in range(3):  # Increase number of monsters
-                        monster = pygame.Rect(monster_x, -ORANGE_MONSTER_HEIGHT, ORANGE_MONSTER_WIDTH, ORANGE_MONSTER_HEIGHT)
-                        monsters.append(monster)
+                monster = pygame.Rect(monster_x, -MONSTER_HEIGHT, MONSTER_WIDTH, MONSTER_HEIGHT)
+                monsters.append(monster)
                 monster_count = current_time
 
             for event in pygame.event.get():
@@ -247,21 +324,20 @@ def main(fruit_vel_multiplier=1, candy_count=0):
                 elif fruit.colliderect(player):
                     fruits.remove(fruit)
                     score += 1
-                    STRAWBERRY_VEL += fruit_vel_increment  # Increase speed
+                    STRAWBERRY_VEL += fruit_vel_increment
                     if score % 3 == 0:
-                        fruit_spawn_delay = max(800, fruit_spawn_delay - 100)  # Decrease delay with a minimum limit
+                        fruit_spawn_delay = max(800, fruit_spawn_delay - 100)
                     if score == 10 and not show_warning:
                         draw_warning()
                         show_warning = True
                     if score == 20:
-                        level = 2  # Transition to level 2
+                        level = 2
                         draw_level_up(level)
                     elif score == 34:
-                        level = 3  # Transition to level 3
+                        level = 3
                         draw_level_up(level)
                     elif score == 40:
                         candy_count += 1
-                        play_again_button = draw_candy(candy_count)
                         game_over = True
 
             for monster in monsters[:]:
@@ -274,7 +350,6 @@ def main(fruit_vel_multiplier=1, candy_count=0):
                     if monster_touches >= 2:
                         game_over = True
 
-            # Check for collisions between fruits and monsters
             for fruit in fruits[:]:
                 for monster in monsters[:]:
                     if fruit.colliderect(monster):
@@ -285,18 +360,61 @@ def main(fruit_vel_multiplier=1, candy_count=0):
             draw(player, elapsed_time, fruits, monsters, score, missed, level, monster_touches, candy_count)
 
         else:
-            while game_over and candy_count > 0:
-                play_again_button = draw_candy(candy_count)
+            end_time = time.time()
+            if score == 40:
+                play_again_button, feedback_button, feedback_input_rect = draw_candy(candy_count)
+            else:
+                restart_button, feedback_button, feedback_input_rect = draw_game_over(score)
+
+            feedback_text = ""
+            font = pygame.font.SysFont("arial", 18)
+            submitting_feedback = True
+            while submitting_feedback:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         run = False
-                        game_over = False
+                        submitting_feedback = False
                     elif event.type == pygame.MOUSEBUTTONDOWN:
-                        if play_again_button.collidepoint(event.pos):
-                            main(fruit_vel_multiplier + 0.1, candy_count)  # Increase the speed of the fruits
-                    keys = pygame.key.get_pressed()
-                    if keys[pygame.K_r]:
-                        main()
+                        if score == 40 and play_again_button.collidepoint(event.pos):
+                            main(fruit_vel_increment + 0.1, candy_count)
+                        elif feedback_button.collidepoint(event.pos):
+                            if handle_feedback(feedback_input_rect, start_time, difficulty, end_time, score, score == 40) == "won":
+                                play_again_button, feedback_button, feedback_input_rect = draw_candy(candy_count)
+                            else:
+                                restart_button, feedback_button, feedback_input_rect = draw_game_over(score)
+                            submitting_feedback = False
+                        elif score != 40 and restart_button.collidepoint(event.pos):
+                            main()
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_RETURN:
+                            if handle_feedback(feedback_input_rect, start_time, difficulty, end_time, score, score == 40) == "won":
+                                play_again_button, feedback_button, feedback_input_rect = draw_candy(candy_count)
+                            else:
+                                restart_button, feedback_button, feedback_input_rect = draw_game_over(score)
+                            submitting_feedback = False
+                        elif event.key == pygame.K_BACKSPACE:
+                            feedback_text = feedback_text[:-1]
+                        else:
+                            feedback_text += event.unicode
+
+                WIN.blit(BG, (0, 0))
+                if score == 40:
+                    WIN.blit(CANDY_IMG, (WIDTH / 2 - CANDY_WIDTH / 2, HEIGHT / 2 - CANDY_HEIGHT / 2))
+                    draw_rectangle_with_text(f"Candy Count: {candy_count}", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 2 - 150)
+                    draw_rectangle_with_text("Get 12 candies and a real winner gift candy set will be sent to you, so go get your fruits!", FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 + 50)
+                    draw_rectangle_with_text("Congratulations, you won a candy treat!", FONT, "white", WIDTH / 2 - 300, HEIGHT / 2 + 100)
+                    play_again_button = draw_button("Play Again & Win Again", FONT, "white", (0, 128, 0), WIDTH / 2 - 150, HEIGHT - 100)
+                else:
+                    draw_rectangle_with_text("Game Over!", BIG_FONT, "white", WIDTH / 2 - 150, HEIGHT / 4)
+                    draw_rectangle_with_text(f"Your Score: {score}", FONT, "white", WIDTH / 2 - 150, HEIGHT / 2)
+                    restart_button = draw_button("Restart", FONT, (255, 255, 255), (0, 128, 0), WIDTH / 2 - 150, HEIGHT - 100)
+
+                pygame.draw.rect(WIN, (255, 255, 255), feedback_input_rect)
+                pygame.draw.rect(WIN, (0, 0, 0), feedback_input_rect, 2)
+                text_surface = font.render(feedback_text, True, (0, 0, 0))
+                WIN.blit(text_surface, (feedback_input_rect.x + 5, feedback_input_rect.y + 5))
+                feedback_button = draw_button("Submit Feedback", font, (0, 0, 0), (173, 216, 230), 10, HEIGHT - 60)
+                pygame.display.update()
 
     pygame.quit()
 
